@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SKU Data Insight Agent</title>
+  <link rel="stylesheet" href="/styles.css?v=20260903-6">
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div class="mark">AI</div>
+      <div>
+        <h1>SKU Data Insight Agent</h1>
+        <p>Upload raw data, describe the SKU and channels, then review and download.</p>
+      </div>
+      <span id="health" class="status">Checking…</span>
+    </header>
+
+    <section class="card upload-card">
+      <div>
+        <span class="eyebrow">STEP 1</span>
+        <h2>Raw data workbook</h2>
+        <p>Excel stays local. Only structured summaries are sent to Agnes AI.</p>
+      </div>
+      <label class="drop" for="file">
+        <input id="file" type="file" accept=".xlsx">
+        <strong id="fileLabel">Choose .xlsx</strong>
+        <small>Maximum 100 MB</small>
+      </label>
+    </section>
+
+    <section class="card chat-card">
+      <span class="eyebrow">STEP 2</span>
+      <h2>What do you want to analyze?</h2>
+      <div class="example">例如：分析 Philips S1115/02 在 JD、ALI 或 Offline 中某一个渠道最近 12 个月的价格与销量，并比较竞品。一次仅选择一个渠道和一个 Philips 产品；同一产品的组合型号标签视为一个产品。</div>
+      <textarea id="prompt" rows="4" placeholder="输入 SKU、渠道和月份…">分析 Philips S3203/08 在 JD 最近 12 个月的价格与销量，并比较竞品。</textarea>
+      <div class="actions">
+        <button id="inspect" class="secondary">Recognize intent</button>
+        <button id="review" class="secondary">Review extracted data</button>
+        <button id="run">Generate report</button>
+      </div>
+      <div id="intent" class="intent hidden"></div>
+    </section>
+
+    <section id="reviewCard" class="card hidden">
+      <span class="eyebrow">OPTIONAL CHECK</span>
+      <h2>Extraction and mapping review</h2>
+      <p>Verify month coverage, competitor mapping states, Value, Unit, ASP and source cells before generating employee artifacts.</p>
+      <div id="reviewSummary"></div>
+    </section>
+
+    <section id="mappingCard" class="card hidden">
+      <span class="eyebrow">REVIEW REQUIRED</span>
+      <h2>Confirm competitor mapping</h2>
+      <p>Select one approved model for each unresolved competitor brand. No candidate is preselected.</p>
+      <div id="mapping"></div>
+      <button id="confirm">Confirm and continue</button>
+    </section>
+
+    <section id="labelCard" class="card hidden">
+      <span class="eyebrow">STRUCTURE REVIEW REQUIRED</span>
+      <h2>Confirm workbook labels</h2>
+      <p>The recognizer found a new or low-confidence workbook structure. Check the cited cells before extraction continues.</p>
+      <div id="labels"></div>
+      <button id="confirmLabels">Approve labels and continue</button>
+    </section>
+
+    <section id="resultCard" class="card hidden">
+      <span class="eyebrow">OUTPUT</span>
+      <h2>Analysis package</h2>
+      <div id="results"></div>
+    </section>
+
+    <div id="message" class="message hidden"></div>
+  </main>
+  <script src="/app.js?v=20260903-7"></script>
+</body>
+</html>

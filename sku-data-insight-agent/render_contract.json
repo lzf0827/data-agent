@@ -1,0 +1,4 @@
+{
+  "current_payload_version": "1.2",
+  "supported_payload_versions": ["1.1", "1.2"]
+}

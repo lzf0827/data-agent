@@ -1,0 +1,52 @@
+contract_version: "1.2"
+adapter_version: "shaver-pricing-v1.3-dynamic-semantics"
+
+workbook:
+  required_sheets:
+    - Key SKUs List
+    - 3.1 Shaver SKU(ALi)
+    - 3.2 Shaver SKU(JD)
+    - 3.3 Shaver SKU(Offline)
+  maximum_file_bytes: 104857600
+  minimum_month_blocks: 3
+
+channels:
+  JD:
+    sheet: 3.2 Shaver SKU(JD)
+  ALI:
+    sheet: 3.1 Shaver SKU(ALi)
+  OFFLINE:
+    sheet: 3.3 Shaver SKU(Offline)
+
+layout:
+  month_header_column: 4
+  primary:
+    model: 2
+    value: 4
+    unit: 7
+    asp: 10
+  competitor:
+    model: 13
+    brand: 14
+    value: 15
+    unit: 18
+    asp: 21
+
+mapping:
+  sheet: Key SKUs List
+  competitor_delimiters: [",", ";", "；", "、", "\n"]
+
+semantic:
+  prompt_version: semantic-plan-v1
+  label_confidence_threshold: 0.90
+  channel_aliases:
+    JD: [JD, 京东]
+    ALI: [ALI, 阿里, 天猫, 淘宝]
+    OFFLINE: [OFFLINE, 线下, 门店]
+  primary_header_aliases: [PHILIPS, 飞利浦]
+
+quality:
+  allowed_value_scales: [1.0, 0.001, 1000.0]
+  value_reconciliation_relative_tolerance: 0.03
+  primary_metrics_required: [asp, unit]
+  competitor_minimum_coverage: 0.75
