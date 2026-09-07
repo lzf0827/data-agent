@@ -29,6 +29,8 @@ from reportlab.pdfgen import canvas
 
 from adapters import MappingItem, MappingResolution, MonthlyMetric, WorkbookAdapter, WorkbookContractError, normalize, serialize_mappings, serialize_resolutions, write_json
 from semantic import SemanticPlanCache, WorkbookSemanticPlan, WorkbookStructureManifest
+from memory_store import SessionStore
+from experience_store import ExperienceStore
 
 
 CHANNEL_NAME_ALIASES = {"JD": ("JD", "京东"), "ALI": ("ALI", "阿里", "天猫", "淘宝"), "OFFLINE": ("OFFLINE", "线下", "门店")}
@@ -1172,6 +1174,8 @@ class InsightPipeline:
         self.agnes = AgnesClient(root / ".work" / "llm-audit.jsonl", credential_source)
         self.evidence_provider = OfficialEvidenceProvider(root / "official_sources.json")
         self.semantic_cache = SemanticPlanCache(root / ".work" / "semantic-plans")
+        self.sessions = SessionStore(root / ".work" / "sessions")
+        self.experience = ExperienceStore(root / ".work" / "experience", semantic_cache=self.semantic_cache)
 
     def _semantic_plan(self, adapter: WorkbookAdapter, *, labels_confirmed: bool = False) -> tuple[WorkbookSemanticPlan, WorkbookStructureManifest]:
         profiler = adapter.semantic_profiler()
@@ -1218,6 +1222,12 @@ class InsightPipeline:
                 channel = target.channel
                 target_skus[channel] = target.primary_sku
                 approved = {item.brand: item.model for item in (confirmed or {}).get(channel, [])}
+                if not approved:
+                    # L2->L3: reuse previously confirmed mappings on an identical structural
+                    # fingerprint. The adapter still re-validates every reused mapping against
+                    # the current snapshot before committing it.
+                    reuse_brands = [item.brand for item in semantic_plan.group_for(channel).competitor_headers]
+                    approved.update(self.experience.resolve_approved(semantic_plan.layout_fingerprint, channel, target.primary_sku, reuse_brands))
                 mappings, resolutions = adapter.resolve_mapping(
                     channel,
                     target.primary_sku,
@@ -1289,6 +1299,14 @@ class InsightPipeline:
                 "mapping_resolutions": {channel: serialize_resolutions(items) for channel, items in prepared["resolutions"].items()},
                 "semantic_plan": semantic_plan.model_dump(),
             }
+        # L2->L3: persist newly confirmed mappings for reuse on identical structures.
+        for channel, channel_mappings in prepared["mappings"].items():
+            for item in channel_mappings:
+                if item.role == "Competitor" and item.mapping_state in {"EXACT_SINGLE", "CONFIRMED_OVERRIDE"}:
+                    self.experience.put_confirmed_model(
+                        semantic_plan.layout_fingerprint, channel, str(prepared["target_skus"].get(channel, "")),
+                        item.brand, item.model,
+                    )
         source_hash = sha256_file(workbook_path)
         run_group = uuid.uuid4().hex
         temp_group = self.runs_dir / f"{run_group}.tmp"
@@ -1435,6 +1453,17 @@ class InsightPipeline:
                     "manifest": str(final_group / "run_manifest.json"),
                     "zip": str(zip_path),
                 })
+            # L2->L3: persist a session record so follow-up runs can reuse context.
+            try:
+                self.sessions.create(
+                    prompt=getattr(intent, "prompt", intent.model_dump_json()),
+                    intent=intent.model_dump(),
+                    semantic_fingerprint=semantic_plan.layout_fingerprint,
+                    confirmed_mappings=[asdict(item) for channel_mappings in prepared["mappings"].values() for item in channel_mappings],
+                    result={"claims": [item["claims"] for item in results], "run_id": run_group},
+                )
+            except Exception:
+                pass  # session memory is advisory; never fail a completed analysis on persistence
             return {"status": "completed", "run_id": run_group, "intent": intent.model_dump(), "semantic_plan": semantic_plan.model_dump(), "llm_status": self.agnes.status(), "results": results}
         except Exception as exc:
             if not isinstance(exc, WorkbookContractError) or exc.code != "ATOMIC_PUBLISH_LOCKED":
