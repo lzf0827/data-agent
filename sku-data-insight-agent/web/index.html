@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SKU Data Insight Agent</title>
+  <link rel="stylesheet" href="/styles.css?v=20260908-6">
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div class="mark">AI</div>
+      <div>
+        <h1>SKU Data Insight Agent</h1>
+        <p>Upload raw data, describe the SKU and channels, then review and download.</p>
+      </div>
+      <span id="health" class="status">Checking…</span>
+    </header>
+
+    <section class="card mode-card">
+      <div class="mode-heading">
+        <span class="eyebrow">NEW CONVERSATION</span>
+        <h2>选择你的分析方式</h2>
+        <p>在两个独立的分析对话之间切换；每个对话都会保留自己的消息、文件和上下文。</p>
+      </div>
+      <div class="mode-options">
+        <button id="chooseExcel" class="mode-option" type="button"><span class="mode-icon">XLSX</span><span><b>Excel 严格分析</b><small>映射确认、质量门禁、DuckDB 与正式报告</small></span><span class="mode-arrow">OPEN</span></button>
+        <button id="chooseDocument" class="mode-option" type="button"><span class="mode-icon">DOCS</span><span><b>PDF / PPTX / DOCX 洞察</b><small>多文件、多轮对话、证据引用与 Insight</small></span><span class="mode-arrow">OPEN</span></button>
+      </div>
+      <div id="modeContext" class="mode-context">请选择一个功能开始本轮分析</div>
+    </section>
+
+    <section id="excelEntry" class="mode-lane hidden">
+      <section class="card chat-card conversation-card">
+        <div class="workspace-bar"><div><span class="eyebrow">EXCEL WORKSPACE</span><h2>Multi-turn analysis</h2><p id="excelStatus">自动识别 Excel 工作簿结构、渠道和时间范围。</p></div><span class="workspace-state"><i></i> strict mode</span></div>
+        <div class="conversation-window excel-conversation" id="excelConversationWindow">
+          <div id="excelMessages" class="document-messages"><div class="empty-conversation"><span>XLS</span><b>上传 Workbook，开始严格分析</b><small>支持 JD、ALI 或 Offline；一次仅选择一个渠道和一个 Philips 产品，组合型号标签视为一个产品，分析前会先识别可用月份。</small></div></div>
+          <div id="excelActivity" class="activity-panel hidden"></div>
+          <div id="intent" class="intent hidden"></div>
+          <div id="excelActionTray" class="excel-action-tray hidden"><button id="inspect" class="secondary">Recognize intent</button><button id="review" class="secondary">Review extracted data</button><button id="run">Generate report</button></div>
+          <div id="intentConfirmTray" class="excel-action-tray hidden"><span class="tray-label">请确认提取结果</span><button id="confirmIntent" class="secondary">确认，提取数据</button><button id="rejectIntent" class="secondary">信息有误，需要核对</button></div>
+          <div id="dataConfirmTray" class="excel-action-tray hidden"><span class="tray-label">数据表格已生成，请确认</span><button id="confirmData" class="secondary">数据无误，生成报告</button><button id="correctData" class="secondary">数据有误，请修正</button></div>
+        </div>
+        <div class="composer excel-composer">
+          <label class="file-pill" for="file"><input id="file" type="file" accept=".xlsx"><span class="file-pill-icon">＋</span><span><b id="fileLabel">添加 Excel</b><small>仅支持 .xlsx</small></span></label>
+          <textarea id="prompt" rows="2" placeholder="例如：分析 Philips S3203/08 在 JD 最近 12 个月的价格与销量，并比较竞品。"></textarea>
+          <button id="excelSend" class="send-icon" type="button" aria-label="发送分析" title="发送分析">➤</button>
+        </div>
+      </section>
+    </section>
+
+    <section id="reviewCard" class="card hidden">
+      <span class="eyebrow">OPTIONAL CHECK</span>
+      <h2>Extraction and mapping review</h2>
+      <p>Verify month coverage, competitor mapping states, Value, Unit, ASP and source cells before generating employee artifacts.</p>
+      <div id="reviewSummary"></div>
+    </section>
+
+    <section id="mappingCard" class="card hidden">
+      <span class="eyebrow">REVIEW REQUIRED</span>
+      <h2>Confirm competitor mapping</h2>
+      <p>Select one approved model for each unresolved competitor brand. No candidate is preselected.</p>
+      <div id="mapping"></div>
+      <button id="confirm">Confirm and continue</button>
+    </section>
+
+    <section id="labelCard" class="card hidden">
+      <span class="eyebrow">STRUCTURE REVIEW REQUIRED</span>
+      <h2>Confirm workbook labels</h2>
+      <p>The recognizer found a new or low-confidence workbook structure. Check the cited cells before extraction continues.</p>
+      <div id="labels"></div>
+      <button id="confirmLabels">Approve labels and continue</button>
+    </section>
+
+    <section id="planCard" class="card hidden">
+      <span class="eyebrow">PROTO-L3 REVIEW</span>
+      <h2>Approve analysis plan</h2>
+      <p>The experimental planner may only compose registered, validated analysis steps.</p>
+      <div id="analysisPlan"></div>
+      <button id="confirmPlan">Approve plan and continue</button>
+    </section>
+
+    <section id="resultCard" class="card hidden">
+      <span class="eyebrow">OUTPUT</span>
+      <h2>Analysis package</h2>
+      <div id="excelResultActivity" class="activity-panel hidden"></div>
+      <div id="results"></div>
+    </section>
+
+    <section id="documentEntry" class="card document-card hidden">
+      <div class="workspace-bar">
+        <div><span class="eyebrow">DOCUMENT WORKSPACE</span><h2>Multi-turn analysis</h2><p id="documentStatus">自动识别 PDF、PPTX、DOCX 和文本文件</p></div>
+        <span class="workspace-state"><i></i> local session</span>
+      </div>
+      <div class="conversation-window" id="conversationWindow">
+        <div id="documentMessages" class="document-messages">
+          <div class="empty-conversation"><span>AI</span><b>开始一个文档分析任务</b><small>上传文件后，用自然语言描述你想了解的内容。</small></div>
+        </div>
+        <div id="documentActivity" class="activity-panel hidden"></div>
+      </div>
+      <div class="composer">
+        <label class="file-pill" for="documentFiles"><input id="documentFiles" type="file" multiple accept=".pdf,.pptx,.docx,.csv,.json,.txt,.md"><span class="file-pill-icon">＋</span><span><b id="documentFileLabel">添加文件</b><small id="documentFileHint">自动识别文件格式</small></span></label>
+        <textarea id="documentPrompt" rows="2" placeholder="例如：总结这份竞品报告，重点找出 Braun 的风险并引用页码。"></textarea>
+        <div class="composer-actions"><button id="documentExport" class="secondary" disabled>导出 Markdown</button><button id="documentSend" class="send-icon" type="button" aria-label="发送分析" title="发送分析">➤</button></div>
+      </div>
+    </section>
+
+    <div id="message" class="message hidden"></div>
+  </main>
+  <script src="/app.js?v=20260908-6"></script>
+</body>
+</html>
